@@ -21,13 +21,9 @@ catch {
 
 $myCustomObject = New-Object -TypeName psobject
 
-$tableHeaderRowDefault = 1
-$startColumnDefault = 1
-$startRowDefault = 1
-
-$startRow = $startRowDefault
-$startColumn = $startColumnDefault
-$tableHeaderRow = $tableHeaderRowDefault
+$startRow = 1
+$startColumn = 1
+$tableHeaderRow = 1
 
 # Loop though all the available worksheets
 foreach ($sheet in $workbook.WorkSheets) {
@@ -41,21 +37,21 @@ foreach ($sheet in $workbook.WorkSheets) {
     Write-Output "Worksheet $($sheet.Name)"
 
     # Which row is reperesents the table head
-    $tableHeaderRowPrompt = Read-Host -Prompt "Table header row: $($tableHeaderRowDefault)? [Overwrite]"
+    $tableHeaderRowPrompt = Read-Host -Prompt "Table header row: $($tableHeaderRow)? [Overwrite]"
 
     if (-not [string]::IsNullOrWhiteSpace($tableHeaderRowPrompt)) {
         $tableHeaderRow = [int32]$tableHeaderRowPrompt
     }
 
     # Which row to start from
-    $startRowPrompt = Read-Host -Prompt "Start row: $($startRowDefault)? [Overwrite]"
+    $startRowPrompt = Read-Host -Prompt "Start row: $($startRow)? [Overwrite]"
 
     if (-not [string]::IsNullOrWhiteSpace($startRowPrompt)) {
         $startRow = [int32]$startRowPrompt
     }
 
     # Which column to start from
-    $startColumnPrompt = Read-Host -Prompt "Start column: $($startColumnDefault)? [Overwrite]"
+    $startColumnPrompt = Read-Host -Prompt "Start column: $($startColumn)? [Overwrite]"
 
     if (-not [string]::IsNullOrWhiteSpace($startColumnPrompt)) {
         $startColumn = [int32]$startColumnPrompt
