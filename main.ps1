@@ -1,4 +1,4 @@
-Set-StrictMode -Version 3.0 # For development purposes only
+# Set-StrictMode -Version 3.0 # For development purposes only
 
 if (-not (Get-command -module psexcel)) {
     Install-module PSExcel -Scope CurrentUser
@@ -82,8 +82,9 @@ foreach ($sheet in $workbook.WorkSheets) {
     # Loop through rows and columns
     for ($row = $startRow; $row -le $rowEnd; $row++) {
         Write-Progress -Activity "Reading rows ..." -Status "Row $($row - $startRow + 1) of $rowIterationCount" -PercentComplete $($row / $rowEnd * 100)
-        # $columns = @()
+
         [PSCustomObject]$columns = New-Object -TypeName psobject
+
         for ($column = $startColumn; $column -le $columnEnd; $column++) {
             $columnHead = $sheet.Cells.Item($tableHeaderRow, $column).Text
             $value = $sheet.Cells.Item($row, $column).Text
