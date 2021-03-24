@@ -1,4 +1,4 @@
-# Set-StrictMode -Version 3.0 # For development purposes only
+Set-StrictMode -Version 3.0 # For development purposes only
 
 if (-not (Get-command -module psexcel)) {
     Install-module PSExcel -Scope CurrentUser
@@ -25,18 +25,18 @@ catch {
 
 $myCustomObject = New-Object -TypeName psobject
 
-$startRow = 1
-$startColumn = 1
-$tableHeaderRow = 1
-
 # Loop though all the available worksheets
 foreach ($sheet in $workbook.WorkSheets) {
+    $tableHeaderRow = $sheet.UsedRange.Rows.Row
+    $startRow = $sheet.UsedRange.Rows.Row + 1
+    $startColumn = $sheet.UsedRange.Columns.Column
+
     $rows = @()
     $columnCount = ($sheet.UsedRange.Columns).count
-    $rowCount = ($sheet.UsedRange.Rows).count
+    $rowCount = ($sheet.UsedRange.Rows).count - 1 # subtract header row
 
-    $rowEnd = $rowCount
-    $columnEnd = $columnCount
+    $rowEnd = $startRow + $rowCount - 1
+    $columnEnd = $startColumn + $columnCount - 1
 
     Write-Output "Worksheet $($sheet.Name)"
 
