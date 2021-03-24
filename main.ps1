@@ -1,11 +1,15 @@
-# Install-module PSExcel -Scope CurrentUser
-# Get-command -module psexcel
-# import-module psexcel
+# Set-StrictMode -Version 3.0 # For development purposes only
+
+if (-not (Get-command -module psexcel)) {
+    Install-module PSExcel -Scope CurrentUser
+    Get-command -module psexcel
+    import-module psexcel
+}
 
 $host.PrivateData.ProgressBackgroundColor = $host.UI.RawUI.BackgroundColor
 $host.privatedata.ProgressForegroundColor = "green";
 
-$path = (Get-Location | Select-Object -ExpandProperty Path)
+$currentFolder = (Get-Location | Select-Object -ExpandProperty Path)
 
 $file = $args[0]
 $excel = new-object -com Excel.Application -Property @{ Visible = $false }
@@ -79,13 +83,13 @@ foreach ($sheet in $workbook.WorkSheets) {
     for ($row = $startRow; $row -le $rowEnd; $row++) {
         Write-Progress -Activity "Reading rows ..." -Status "Row $($row - $startRow + 1) of $rowIterationCount" -PercentComplete $($row / $rowEnd * 100)
         # $columns = @()
-        $columns = New-Object -TypeName psobject
+        [PSCustomObject]$columns = New-Object -TypeName psobject
         for ($column = $startColumn; $column -le $columnEnd; $column++) {
             $columnHead = $sheet.Cells.Item($tableHeaderRow, $column).Text
             $value = $sheet.Cells.Item($row, $column).Text
 
-            if (-not ($columns.psobject.Properties.name -contains $columnHead)) {
-                # Check if key already exists
+            if ($column -eq $startColumn -or -not ($columns.psobject.Properties.name -contains $columnHead)) {
+                # Check if key already exists or object is empty
                 $columns | Add-Member -MemberType NoteProperty -Name $columnHead -Value $value # Add all values in row to $columns
             }
         }
@@ -99,4 +103,4 @@ foreach ($sheet in $workbook.WorkSheets) {
 Write-Output $myCustomObject
 
 # Save result to JSON file
-[PSCustomObject]$myCustomObject | ConvertTo-Json -Depth 3 -Compress | Set-Content -Path "$($path)\psobject.json" -Encoding UTF8
+[PSCustomObject]$myCustomObject | ConvertTo-Json -Depth 3 -Compress | Set-Content -Path "$($currentFolder)\psobject.json" -Encoding UTF8
