@@ -25,51 +25,114 @@ catch {
 
 $myCustomObject = New-Object -TypeName psobject
 
+function getLastRowWithValue {
+    param (
+        [int]$startColumn,
+        [int]$endColumn,
+        [int]$tableHeadRow,
+        [int]$touchedRowsEnd
+    )
+
+    # Get last row with value by going from bottom to top
+    for ($row = $touchedRowsEnd; $row -ge $boundaries.tableHeadRow + 1; $row--) {
+        for ($column = $boundaries.startColumn; $column -le $boundaries.endColumn; $column++) {
+            $value = $sheet.Cells.Item($row, $column).Text
+            if (([string]$value).Replace(" ", "") -ne "") {
+                return $row
+            }
+        }
+    }
+}
+
+function detectStart {
+    param (
+        $sheet
+    )
+    $touchedRowsCount = $sheet.UsedRange.Rows.Count
+    $touchedColumnsCount = $sheet.UsedRange.Columns.Count
+
+    $touchedRowsStart = $sheet.UsedRange.Row
+    $touchedColumnsStart = $sheet.UsedRange.Column
+    $touchedRowsEnd = $touchedRowsStart + $touchedRowsCount - 1
+    $touchedColumnsEnd = $touchedColumnsStart + $touchedColumnsCount - 1
+
+    Write-Output "Used Range: $touchedColumnsStart,$touchedRowsStart - $touchedColumnsEnd,$touchedRowsEnd"
+   
+    $presumableTableHead = @()
+    $potentialTableHead = @()
+
+    # Find table head and and first respectively last column
+    for ($row = $touchedRowsStart; $row -le $touchedRowsEnd; $row++) {
+        for ($column = $touchedColumnsStart; $column -le $touchedColumnsEnd; $column++) {
+            $value = $sheet.Cells.Item($row, $column).Text
+            if (([string]$value).Replace(" ", "") -ne "") {
+                $potentialTableHead += @{column = $column; row = $row }
+            }
+            else {
+                if ($potentialTableHead.length -gt $presumableTableHead.length) {
+                    $presumableTableHead = $potentialTableHead
+                }
+                $potentialTableHead = @()
+            }
+        }
+    }
+
+    # [PSCustomObject] -> Otherwise it won't add anything
+    $boundaries = [PSCustomObject]@{tableHeadRow = $presumableTableHead[0].row; startColumn = $presumableTableHead[0].column; endColumn = $presumableTableHead[-1].column }
+
+    $lastRowWithValue = getLastRowWithValue $boundaries.startColumn $boundaries.endColumn $boundaries.tableHeadRow $touchedRowsEnd
+    $boundaries | Add-Member -MemberType NoteProperty -Name lastRow -Value $lastRowWithValue
+
+    return $boundaries
+}
+
+
 # Loop though all the available worksheets
 foreach ($sheet in $workbook.WorkSheets) {
-    $tableHeaderRow = $sheet.UsedRange.Rows.Row
-    $startRow = $sheet.UsedRange.Rows.Row + 1
-    $startColumn = $sheet.UsedRange.Columns.Column
+    $boundaries = detectStart $sheet
+    $tableHeaderRow = $boundaries.tableHeadRow
+    $startRow = $boundaries.tableHeadRow + 1
+    $startColumn = $boundaries.startColumn
 
     $rows = @()
     $columnCount = ($sheet.UsedRange.Columns).count
     $rowCount = ($sheet.UsedRange.Rows).count - 1 # subtract header row
 
-    $rowEnd = $startRow + $rowCount - 1
-    $columnEnd = $startColumn + $columnCount - 1
+    $rowEnd = $boundaries.lastRow
+    $columnEnd = $boundaries.endColumn
 
     Write-Output "Worksheet $($sheet.Name)"
 
     # Which row is reperesents the table head
-    $tableHeaderRowPrompt = Read-Host -Prompt "Table header row: $($tableHeaderRow)? [Overwrite]"
+    $tableHeaderRowPrompt = Read-Host -Prompt "Table header row=$($tableHeaderRow)? [Overwrite]"
 
     if (-not [string]::IsNullOrWhiteSpace($tableHeaderRowPrompt)) {
         $tableHeaderRow = [int32]$tableHeaderRowPrompt
     }
 
     # Which row to start from
-    $startRowPrompt = Read-Host -Prompt "Start row: $($startRow)? [Overwrite]"
+    $startRowPrompt = Read-Host -Prompt "Start row=$($startRow)? [Overwrite]"
 
     if (-not [string]::IsNullOrWhiteSpace($startRowPrompt)) {
         $startRow = [int32]$startRowPrompt
     }
 
     # Which column to start from
-    $startColumnPrompt = Read-Host -Prompt "Start column: $($startColumn)? [Overwrite]"
+    $startColumnPrompt = Read-Host -Prompt "Start column=$($startColumn)? [Overwrite]"
 
     if (-not [string]::IsNullOrWhiteSpace($startColumnPrompt)) {
         $startColumn = [int32]$startColumnPrompt
     }
 
     # Set max row
-    $rowEndPrompt = Read-Host -Prompt "$rowCount rows? [Overwrite]"
+    $rowEndPrompt = Read-Host -Prompt "Last row=$rowEnd [Overwrite]"
 
     if (-not [string]::IsNullOrWhiteSpace($rowEndPrompt)) {
         $rowEnd = [int32]$rowEndPrompt
     }
 
     #Set max column
-    $columnEndPrompt = Read-Host -Prompt "$columnCount columns? [Overwrite]"
+    $columnEndPrompt = Read-Host -Prompt "Last column=$columnEnd [Overwrite]"
 
     if (-not [string]::IsNullOrWhiteSpace($columnEndPrompt)) {
         $columnEnd = [int32]$columnEndPrompt
@@ -105,3 +168,5 @@ Write-Output $myCustomObject
 
 # Save result to JSON file
 [PSCustomObject]$myCustomObject | ConvertTo-Json -Depth 3 -Compress | Set-Content -Path "$($currentFolder)\psobject.json" -Encoding UTF8
+
+
