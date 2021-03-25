@@ -99,10 +99,12 @@ function detectStart {
 # Loop though all the available worksheets
 foreach ($sheet in $workbook.WorkSheets) {
     Write-Output "Looking for table in worksheet $($sheet.Name) ..."
+    
+    $boundaries = detectStart $sheet
+    
     Write-Output "Table found!"
     Write-Output ""
 
-    $boundaries = detectStart $sheet
     $tableHeaderRow = $boundaries.tableHeadRow
     $startRow = $boundaries.tableHeadRow + 1
     $startColumn = $boundaries.startColumn
@@ -148,7 +150,7 @@ foreach ($sheet in $workbook.WorkSheets) {
         $columnEnd = [int32]$columnEndPrompt
     }
 
-    Write-Output "Table head row $tableHeaderRow - Dimensions: Rows $($startRow)-$($rowEnd), Columns $($startColumn)-$($columnEnd)"
+    Write-Output "Dimensions: Rows $($startRow)-$($rowEnd), Columns $($startColumn)-$($columnEnd)"
 
     $rowIterationCount = $rowEnd - $startRow + 1
 
