@@ -34,8 +34,8 @@ function getLastRowWithValue {
     )
 
     # Get last row with value by going from bottom to top
-    for ($row = $touchedRowsEnd; $row -ge $boundaries.tableHeadRow + 1; $row--) {
-        for ($column = $boundaries.startColumn; $column -le $boundaries.endColumn; $column++) {
+    for ($row = $touchedRowsEnd; $row -ge $tableHeadRow + 1; $row--) {
+        for ($column = $startColumn; $column -le $endColumn; $column++) {
             $value = $sheet.Cells.Item($row, $column).Text
             if (([string]$value).Replace(" ", "") -ne "") {
                 return $row
@@ -57,7 +57,7 @@ function detectStart {
     $touchedColumnsEnd = $touchedColumnsStart + $touchedColumnsCount - 1
 
     Write-Output "Used Range: $touchedColumnsStart,$touchedRowsStart - $touchedColumnsEnd,$touchedRowsEnd"
-   
+
     $presumableTableHead = @()
     $potentialTableHead = @()
 
@@ -78,9 +78,18 @@ function detectStart {
     }
 
     # [PSCustomObject] -> Otherwise it won't add anything
-    $boundaries = [PSCustomObject]@{tableHeadRow = $presumableTableHead[0].row; startColumn = $presumableTableHead[0].column; endColumn = $presumableTableHead[-1].column }
+    $boundaries = [PSCustomObject]@{
+        tableHeadRow = $presumableTableHead[0].row;
+        startColumn  = $presumableTableHead[0].column;
+        endColumn    = $presumableTableHead[-1].column
+    }
 
-    $lastRowWithValue = getLastRowWithValue $boundaries.startColumn $boundaries.endColumn $boundaries.tableHeadRow $touchedRowsEnd
+    $lastRowWithValue = getLastRowWithValue `
+        -startColumn $boundaries.startColumn `
+        -endColumn $boundaries.endColumn `
+        -tableHeadRow $boundaries.tableHeadRow `
+        -touchedRowsEnd $touchedRowsEnd
+
     $boundaries | Add-Member -MemberType NoteProperty -Name lastRow -Value $lastRowWithValue
 
     return $boundaries
@@ -89,19 +98,20 @@ function detectStart {
 
 # Loop though all the available worksheets
 foreach ($sheet in $workbook.WorkSheets) {
+    Write-Output "Looking for table in worksheet $($sheet.Name) ..."
+    Write-Output "Table found!"
+    Write-Output ""
+
     $boundaries = detectStart $sheet
     $tableHeaderRow = $boundaries.tableHeadRow
     $startRow = $boundaries.tableHeadRow + 1
     $startColumn = $boundaries.startColumn
 
     $rows = @()
-    $columnCount = ($sheet.UsedRange.Columns).count
-    $rowCount = ($sheet.UsedRange.Rows).count - 1 # subtract header row
 
     $rowEnd = $boundaries.lastRow
     $columnEnd = $boundaries.endColumn
 
-    Write-Output "Worksheet $($sheet.Name)"
 
     # Which row is reperesents the table head
     $tableHeaderRowPrompt = Read-Host -Prompt "Table header row=$($tableHeaderRow)? [Overwrite]"
