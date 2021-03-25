@@ -179,4 +179,7 @@ Write-Output $myCustomObject
 # Save result to JSON file
 [PSCustomObject]$myCustomObject | ConvertTo-Json -Depth 3 -Compress | Set-Content -Path "$($currentFolder)\psobject.json" -Encoding UTF8
 
+Write-Output "Quitting Excel ..."
 
+$excel.Workbooks.Close()
+$excel.Quit()
