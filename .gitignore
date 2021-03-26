@@ -1,2 +1,4 @@
 *.xlsx
 *.json
+*.csv
+xlsxToCsv.ps1

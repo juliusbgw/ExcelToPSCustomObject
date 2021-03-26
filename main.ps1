@@ -161,7 +161,7 @@ foreach ($sheet in $workbook.WorkSheets) {
         [PSCustomObject]$columns = New-Object -TypeName psobject
 
         for ($column = $startColumn; $column -le $columnEnd; $column++) {
-            $columnHead = $sheet.Cells.Item($tableHeaderRow, $column).Text
+            $columnHead = $sheet.Cells.Item($tableHeaderRow, $column).Text.Replace("`n", " ")
             $value = $sheet.Cells.Item($row, $column).Text
 
             if ($column -eq $startColumn -or -not ($columns.psobject.Properties.name -contains $columnHead)) {
@@ -179,7 +179,7 @@ foreach ($sheet in $workbook.WorkSheets) {
 Write-Output $myCustomObject
 
 # Save result to JSON file
-[PSCustomObject]$myCustomObject | ConvertTo-Json -Depth 3 -Compress | Set-Content -Path "$($currentFolder)\psobject.json" -Encoding UTF8
+[PSCustomObject]$myCustomObject | ConvertTo-Json -Depth 3 -Compress | Set-Content -Path "$($currentFolder)\$($ws.name).json" -Encoding UTF8
 
 Write-Output "Quitting Excel ..."
 
