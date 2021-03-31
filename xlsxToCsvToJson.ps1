@@ -129,11 +129,13 @@ Get-ChildItem "$currentFolder\$csvFolderName" | ForEach-Object {
         }
         $rows += , $columns # Add array of values to $rows
     }
-    $myCustomObject | Add-Member -MemberType NoteProperty -Name $sheetName -Value $rows # Create new Key for each Worksheet with corresponding rows
+    $myCustomObject | Add-Member -MemberType NoteProperty -Name $sheetName.Replace(".csv", "") -Value $rows # Create new Key for each Worksheet with corresponding rows
 
 }
 
 
-[PSCustomObject]$myCustomObject | ConvertTo-Json -Depth 3 -Compress | Set-Content -Path "$($currentFolder)\$file.json" -Encoding UTF8
+[PSCustomObject]$myCustomObject `
+| ConvertTo-Json -Depth 3 -Compress `
+| Set-Content -Path "$($currentFolder)\$($file).json" -Encoding UTF8
 
 Remove-Item -R $csvFolderName
