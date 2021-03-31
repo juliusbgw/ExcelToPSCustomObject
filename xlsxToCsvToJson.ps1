@@ -4,11 +4,10 @@ Function ExcelToCsv () {
         $csvFolder
     )
     $myDir = (Get-Location | Select-Object -ExpandProperty Path)
-    $excelFile = "$myDir\" + $file + ".xlsx"
     $excel = new-object -com Excel.Application -Property @{ Visible = $false }
     $excel.DisplayAlerts = $false
-    $wb = $Excel.Workbooks.Open($excelFile)
-    Write-Output $excelFile
+    $wb = $Excel.Workbooks.Open($file)
+    Write-Output $file
     $xlCSV = 6
     try {
         foreach ($ws in $wb.Worksheets) {
@@ -112,12 +111,15 @@ Get-ChildItem "$currentFolder\$csvFolderName" | ForEach-Object {
     # if($sheetName -ne "Allgemeines.csv") {
     #     break
     # }
-    
+        
+    # if ($tableHeaderRow -eq $null) {
+    #     break
+    # }
     for ($row = $startRow; $row -le $rowEnd; $row++) {
         # Write-Progress -Activity "Reading rows ..." -Status "Row $($row - $startRow + 1) of $rowIterationCount" -PercentComplete $($row / $rowEnd * 100)
         
         [PSCustomObject]$columns = New-Object -TypeName psobject
-        
+
         for ($column = $startColumn; $column -le $columnEnd; $column++) {
             $columnHead = $csv[$tableHeaderRow].PsObject.Properties.Value[$column].Replace("`n", " ").Replace("`r", " ")
             $value = $csv[$row].PsObject.Properties.Value[$column]
@@ -136,6 +138,6 @@ Get-ChildItem "$currentFolder\$csvFolderName" | ForEach-Object {
 
 [PSCustomObject]$myCustomObject `
 | ConvertTo-Json -Depth 3 -Compress `
-| Set-Content -Path "$($currentFolder)\$($file).json" -Encoding UTF8
+| Set-Content -Path "$($currentFolder)\$($file.Split("\")[-1].Replace('.xlsx', '')).json" -Encoding UTF8
 
 Remove-Item -R $csvFolderName
