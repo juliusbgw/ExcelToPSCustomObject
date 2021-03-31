@@ -44,6 +44,14 @@ function getLastRowWithValue {
     }
 }
 
+function Stopwatch {
+    param ( [ScriptBlock]$ScriptBlock )
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    & $ScriptBlock
+    $stopwatch.Stop()
+    Set-Variable Elapsed -value $stopwatch.Elapsed -scope 1
+}
+
 function detectStart {
     param (
         $sheet
@@ -95,13 +103,76 @@ function detectStart {
     return $boundaries
 }
 
+function detectStartCSV {
+    param (
+        $sheet
+    )
+
+    $Path = (Get-Location | Select-Object -ExpandProperty Path) + "\csvs\*.csv"
+    (Get-Content -Path $Path) | Set-Content -Path $Path -Encoding UTF8 
+
+    $csv = Import-Csv  ((Get-Location | Select-Object -ExpandProperty Path) + ".\csvs\Tabelle1.csv") 
+
+    $presumableTableHead = @()
+    $potentialTableHead = @()
+
+    for ($row = 0; $row -lt $csv.length; $row++) {
+        $columns = $csv[$row].PsObject.Properties.Value
+        for ($column = 0; $column -lt $columns.length; $column++) {
+            $value = $columns[$column]
+            if (([string]$value).Replace(" ", "") -ne "") {
+                $potentialTableHead += @{column = $column; row = $row }
+            }
+            else {
+                if ($potentialTableHead.length -gt $presumableTableHead.length) {
+                    $presumableTableHead = $potentialTableHead
+                }
+                $potentialTableHead = @()
+            }
+        }
+    }
+
+    # Write-Output "$presumableTableHead"
+      
+    $boundaries = [PSCustomObject]@{
+        tableHeadRow = $presumableTableHead[0].row;
+        startColumn  = $presumableTableHead[0].column;
+        endColumn    = $presumableTableHead[-1].column;
+        lastRow = ($csv.length - 1)
+    }
+
+    # [PSCustomObject] -> Otherwise it won't add anything
+    # $lastRowWithValue = getLastRowWithValue `
+    #     -startColumn $boundaries.startColumn `
+    #     -endColumn $boundaries.endColumn `
+    #     -tableHeadRow $boundaries.tableHeadRow `
+    #     -touchedRowsEnd $touchedRowsEnd
+
+
+    # $boundaries | Add-Member -MemberType NoteProperty -Name "lastRow" -Value ($csv.length - 1)
+
+    return $boundaries
+}
+
 
 # Loop though all the available worksheets
 foreach ($sheet in $workbook.WorkSheets) {
     Write-Output "Looking for table in worksheet $($sheet.Name) ..."
+
+    $startTime = (Get-Date)
+    $boundaries1 = detectStart $sheet
+    $elapsedTime = (Get-Date) - $startTime
+
+    Write-Output ("Excel: " + $elapsedTime.PSObject.Properties["TotalSeconds"].Value + " seconds")
+    $startTime = (Get-Date)
+    $boundaries2 = detectStartCSV $sheet
+    $elapsedTime = (Get-Date) - $startTime
+    Write-Output ("CSV: " + $elapsedTime.PSObject.Properties["TotalSeconds"].Value + " seconds")
     
-    $boundaries = detectStart $sheet
-    
+    Write-Output $boundaries1
+    Write-Output $boundaries2
+    break
+
     Write-Output "Table found!"
     Write-Output ""
 
