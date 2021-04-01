@@ -1,3 +1,12 @@
+if (-not (Get-command -module psexcel)) {
+    Install-module PSExcel -Scope CurrentUser
+    Get-command -module psexcel
+    import-module psexcel
+}
+
+$host.PrivateData.ProgressBackgroundColor = $host.UI.RawUI.BackgroundColor
+$host.privatedata.ProgressForegroundColor = "green";
+
 Function ExcelToCsv () {
     param (
         $file,
@@ -30,11 +39,21 @@ function detectStartCSV {
     Write-Output "length" $csv.length
     $presumableTableHead = @()
     $potentialTableHead = @()
-        
+
+    # Write-Output "-$($csv[3])-$($csv.length)"
+    # break
     for ($row = 0; $row -lt $csv.length; $row++) {
         $columns = $csv[$row].PsObject.Properties.Value
+        $isString = ($csv[$row].PsObject.Properties.Value.GetType() -Eq [string])
+        # break
         for ($column = 0; $column -lt $columns.length; $column++) {
+            
             $value = $columns[$column]
+            # Write-Host $columns
+            # if($isString) {
+            #     $value = $columns
+            # }
+            # Write-Host "-$($csv[$row])-" 
             # Write-Output ($columns.GetType() -Eq [string])
             if (([string]$value).Replace(" ", "") -ne "") {
                 $potentialTableHead += @{column = $column; row = $row }
@@ -47,6 +66,7 @@ function detectStartCSV {
             }
         }
     }
+    # break
     
     
     $boundaries = [PSCustomObject]@{
@@ -82,7 +102,7 @@ $pathToCSVs = $currentFolder + "\$csvFolderName"
 if (-not(Test-Path $pathToCSVs)) {
     mkdir $csvFolderName
 }
-# Test-Path $file
+
 ExcelToCsv $file $csvFolderName
 
 $myCustomObject = New-Object -TypeName psobject
@@ -92,14 +112,13 @@ Get-ChildItem "$currentFolder\$csvFolderName" | ForEach-Object {
     $content | Set-Content -Path "$pathToCSVs\$($_.Name)" -Encoding UTF8
 }
 
-
 Get-ChildItem "$currentFolder\$csvFolderName" | ForEach-Object {
     $sheetName = $_.Name
     $pathToSheet = "$pathToCSVs\$sheetName"
 
     $csv = Import-Csv $pathToSheet
-    Write-Output "Columns" $csv.length
     $boundaries = detectStartCSV $csv
+
     $tableHeaderRow = $boundaries.tableHeadRow
     $startRow = $boundaries.tableHeadRow + 1
     $startColumn = $boundaries.startColumn
@@ -108,36 +127,38 @@ Get-ChildItem "$currentFolder\$csvFolderName" | ForEach-Object {
     
     $rows = @()
 
-    # if($sheetName -ne "Allgemeines.csv") {
-    #     break
-    # }
-        
-    # if ($tableHeaderRow -eq $null) {
-    #     break
-    # }
-    for ($row = $startRow; $row -le $rowEnd; $row++) {
-        # Write-Progress -Activity "Reading rows ..." -Status "Row $($row - $startRow + 1) of $rowIterationCount" -PercentComplete $($row / $rowEnd * 100)
-        
-        [PSCustomObject]$columns = New-Object -TypeName psobject
+    try {
+        for ($row = $startRow; $row -le $rowEnd; $row++) {
+            Write-Progress -Activity "Reading rows ..." -Status "Row $($row - $startRow + 1) of $($csv.length)" -PercentComplete $($row / $rowEnd * 100)
+            [PSCustomObject]$columns = New-Object -TypeName psobject
 
-        for ($column = $startColumn; $column -le $columnEnd; $column++) {
-            $columnHead = $csv[$tableHeaderRow].PsObject.Properties.Value[$column].Replace("`n", " ").Replace("`r", " ")
-            $value = $csv[$row].PsObject.Properties.Value[$column]
+            for ($column = $startColumn; $column -le $columnEnd; $column++) {
+                $columnHead = $csv[$tableHeaderRow].PsObject.Properties.Value[$column].Replace("`n", " ").Replace("`r", " ")
+                $value = $csv[$row].PsObject.Properties.Value[$column]
 
-            if ($column -eq $startColumn -or -not ($columns.psobject.Properties.name -contains $columnHead)) {
-                # Check if key already exists or object is empty
-                $columns | Add-Member -MemberType NoteProperty -Name $columnHead -Value $value # Add all values in row to $columns
+                if ($column -eq $startColumn -or -not ($columns.psobject.Properties.name -contains $columnHead)) {
+                    # Check if key already exists or object is empty
+                    $columns | Add-Member -MemberType NoteProperty -Name $columnHead -Value $value # Add all values in row to $columns
+                }
             }
+            $rows += , $columns # Add array of values to $rows
         }
-        $rows += , $columns # Add array of values to $rows
+        $myCustomObject | Add-Member -MemberType NoteProperty -Name $sheetName.Replace(".csv", "") -Value $rows # Create new Key for each Worksheet with corresponding rows
     }
-    $myCustomObject | Add-Member -MemberType NoteProperty -Name $sheetName.Replace(".csv", "") -Value $rows # Create new Key for each Worksheet with corresponding rows
+    catch {
+        Write-Host $_
+        break
+        Write-Output "Error reading $($sheetName.Replace('.csv', ''))"
+    }
 
 }
 
+$jsonFileName = "$($file.Split("\")[-1].Replace('.xlsx', '')).json"
+Write-Output "Saving results to $jsonFileName ..."
 
 [PSCustomObject]$myCustomObject `
 | ConvertTo-Json -Depth 3 -Compress `
-| Set-Content -Path "$($currentFolder)\$($file.Split("\")[-1].Replace('.xlsx', '')).json" -Encoding UTF8
+| Set-Content -Path "$($currentFolder)\$jsonFileName" -Encoding UTF8
 
+Write-Output "Done!"
 Remove-Item -R $csvFolderName

@@ -13,6 +13,7 @@ $currentFolder = (Get-Location | Select-Object -ExpandProperty Path)
 
 $file = $args[0]
 $excel = new-object -com Excel.Application -Property @{ Visible = $false }
+$excel.DisplayAlerts = $false
 
 try {
     # Test-Path $file
@@ -64,7 +65,9 @@ function detectStart {
     $touchedRowsEnd = $touchedRowsStart + $touchedRowsCount - 1
     $touchedColumnsEnd = $touchedColumnsStart + $touchedColumnsCount - 1
 
+    Write-Output "tesst"
     Write-Output "Used Range: $touchedColumnsStart,$touchedRowsStart - $touchedColumnsEnd,$touchedRowsEnd"
+    Write-Output "tesst"
 
     $presumableTableHead = @()
     $potentialTableHead = @()
@@ -73,6 +76,7 @@ function detectStart {
     for ($row = $touchedRowsStart; $row -le $touchedRowsEnd; $row++) {
         for ($column = $touchedColumnsStart; $column -le $touchedColumnsEnd; $column++) {
             $value = $sheet.Cells.Item($row, $column).Text
+            Write-Output $value
             if (([string]$value).Replace(" ", "") -ne "") {
                 $potentialTableHead += @{column = $column; row = $row }
             }
@@ -84,6 +88,7 @@ function detectStart {
             }
         }
     }
+    break
 
     # [PSCustomObject] -> Otherwise it won't add anything
     $boundaries = [PSCustomObject]@{
@@ -107,7 +112,6 @@ function detectStartCSV {
     param (
         $sheet
     )
-
     $Path = (Get-Location | Select-Object -ExpandProperty Path) + "\csvs\*.csv"
     (Get-Content -Path $Path) | Set-Content -Path $Path -Encoding UTF8 
 
@@ -159,19 +163,19 @@ function detectStartCSV {
 foreach ($sheet in $workbook.WorkSheets) {
     Write-Output "Looking for table in worksheet $($sheet.Name) ..."
 
-    $startTime = (Get-Date)
+    # $startTime = (Get-Date)
     $boundaries1 = detectStart $sheet
-    $elapsedTime = (Get-Date) - $startTime
+    break
+    # $elapsedTime = (Get-Date) - $startTime
 
-    Write-Output ("Excel: " + $elapsedTime.PSObject.Properties["TotalSeconds"].Value + " seconds")
-    $startTime = (Get-Date)
-    $boundaries2 = detectStartCSV $sheet
-    $elapsedTime = (Get-Date) - $startTime
-    Write-Output ("CSV: " + $elapsedTime.PSObject.Properties["TotalSeconds"].Value + " seconds")
+    # Write-Output ("Excel: " + $elapsedTime.PSObject.Properties["TotalSeconds"].Value + " seconds")
+    # $startTime = (Get-Date)
+    # $boundaries2 = detectStartCSV $sheet
+    # $elapsedTime = (Get-Date) - $startTime
+    # Write-Output ("CSV: " + $elapsedTime.PSObject.Properties["TotalSeconds"].Value + " seconds")
     
     Write-Output $boundaries1
     Write-Output $boundaries2
-    break
 
     Write-Output "Table found!"
     Write-Output ""
